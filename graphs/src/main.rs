@@ -41,7 +41,6 @@ fn resolve<'a>(state: &'a str, action: &'a str) -> &'a str {
     let state_map = TRAVELS.get(state).unwrap();
     match state_map.get(action) {
         Some(result) => {
-            //println!("{} -> {}", state, result);
             result
         }
         None => panic!("Action not found"),
@@ -62,7 +61,7 @@ impl Node {
             father: Some(Box::new(self.clone())),
             route: {
                 let mut father_route = match &self.father {
-                    Some(father) => {
+                    Some(_father) => {
                         self.route.clone()
                     }
                     None => {
@@ -76,7 +75,7 @@ impl Node {
     }
 }
 fn get_route(
-    mut node: Box<Node>,
+    node: Box<Node>,
     objective: &'static str,
 ) {
     if node.state == objective {
@@ -87,35 +86,22 @@ fn get_route(
         let mut handles: Vec<_> = vec![];
         let actions = TRAVELS.get(&node.state).unwrap().keys().cloned().collect::<Vec<_>>();
         for action in actions {
-            //node.route.push(resolve(&node.state, action));
             let son_node = node.expand(&action).clone();
-
-            //println!("84: {:?}", node.route);
-            let handle = std::thread::spawn(move|| {
-
-                get_route(Box::new(son_node), objective);
-
-
-            });
+            let handle = std::thread::spawn(move|| get_route(Box::new(son_node), objective));
             handles.push(handle);
-
         }
-
         for handle in handles {
             handle.join().unwrap();
         }
     }
 }
 
-
 fn main() {
-
     let root_node = Node {
         state: "argentina",
         father: None,
-        route: vec!["aleluya"],
+        route: vec![],
     };
     let objective: &str = "peru";
     get_route(Box::new(root_node), objective);
-
 }
