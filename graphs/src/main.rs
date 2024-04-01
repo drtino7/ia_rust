@@ -48,7 +48,7 @@ fn resolve<'a>(state: &'a str, action: &'a str) -> &'a str {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug,Clone)]
 struct Node {
     state: &'static str,
     father: Option<Box<Node>>,
@@ -61,9 +61,16 @@ impl Node {
             state: resolve(&self.state, action),
             father: Some(Box::new(self.clone())),
             route: {
-                let mut route_clone = self.route.clone();
-                route_clone.push(resolve(&self.state, action));
-                route_clone
+                let mut father_route = match &self.father {
+                    Some(father) => {
+                        self.route.clone()
+                    }
+                    None => {
+                        vec!["argentina"]
+                    }
+                };
+                father_route.push(resolve(&self.state, action));
+                father_route
             },
         }
     }
@@ -80,10 +87,16 @@ fn get_route(
         let mut handles: Vec<_> = vec![];
         let actions = TRAVELS.get(&node.state).unwrap().keys().cloned().collect::<Vec<_>>();
         for action in actions {
+            //node.route.push(resolve(&node.state, action));
             let son_node = node.expand(&action).clone();
-            node.route.push(son_node.state);
+
             //println!("84: {:?}", node.route);
-            let handle = std::thread::spawn(move|| get_route(Box::new(son_node), objective));
+            let handle = std::thread::spawn(move|| {
+
+                get_route(Box::new(son_node), objective);
+
+
+            });
             handles.push(handle);
 
         }
@@ -100,10 +113,9 @@ fn main() {
     let root_node = Node {
         state: "argentina",
         father: None,
-        route: vec![],
+        route: vec!["aleluya"],
     };
     let objective: &str = "peru";
     get_route(Box::new(root_node), objective);
-
 
 }
