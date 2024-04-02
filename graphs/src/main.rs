@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use lazy_static::lazy_static;
 
+
 lazy_static! {
     static ref TRAVELS: HashMap<&'static str, HashMap<&'static str, &'static str>> = {
         let mut map = HashMap::new();
@@ -16,7 +17,7 @@ lazy_static! {
         map.insert("paraguay", HashMap::from([
             ("south", "argentina"),
             ("north", "bolivia"),
-            ("east", "uruguay"),
+            ("east", "brazil"),
         ]));
         map.insert("uruguay", HashMap::from([
             ("west", "argentina"),
@@ -25,14 +26,85 @@ lazy_static! {
         map.insert("bolivia", HashMap::from([
             ("south", "argentina"),
             ("north", "peru"),
+            ("east", "brazil"),
+            ("west", "paraguay"),
         ]));
         map.insert("peru", HashMap::from([
             ("east", "bolivia"),
             ("south", "chile"),
+            ("north", "ecuador"),
+            ("west", "colombia"),
+        ]));
+        map.insert("brazil", HashMap::from([
+            ("north", "colombia"),
+            ("northeast", "guyana"),
+            ("east", "suriname"),
+            ("south", "uruguay"),
+            ("west", "peru"),
+        ]));
+        map.insert("colombia", HashMap::from([
+            ("north", "venezuela"),
+            ("east", "brazil"),
+            ("south", "peru"),
+            ("west", "panama"),
+        ]));
+        map.insert("venezuela", HashMap::from([
+            ("north", "colombia"),
+            ("east", "guyana"),
+            ("south", "brazil"),
+        ]));
+        map.insert("guyana", HashMap::from([
+            ("south", "brazil"),
+            ("west", "suriname"),
+        ]));
+        map.insert("suriname", HashMap::from([
+            ("east", "guyana"),
+            ("south", "brazil"),
+        ]));
+        map.insert("ecuador", HashMap::from([
+            ("south", "peru"),
+            ("east", "colombia"),
+        ]));
+        map.insert("french_guiana", HashMap::from([
+            ("south", "brazil"),
+        ]));
+        map.insert("mexico", HashMap::from([
+            ("north", "united_states"),
+            ("south", "guatemala"),
+            ("east", "belize"),
+        ]));
+        map.insert("guatemala", HashMap::from([
+            ("north", "mexico"),
+            ("east", "belize"),
+            ("south", "honduras"),
+        ]));
+        map.insert("belize", HashMap::from([
+            ("west", "guatemala"),
+        ]));
+        map.insert("honduras", HashMap::from([
+            ("north", "guatemala"),
+            ("east", "nicaragua"),
+            ("south", "el_salvador"),
+        ]));
+        map.insert("nicaragua", HashMap::from([
+            ("west", "honduras"),
+            ("south", "costa_rica"),
+        ]));
+        map.insert("el_salvador", HashMap::from([
+            ("north", "honduras"),
+        ]));
+        map.insert("costa_rica", HashMap::from([
+            ("north", "nicaragua"),
+        ]));
+        map.insert("panama", HashMap::from([
+            ("west", "colombia"),
+            ("north", "costa_rica"),
         ]));
         map
     };
 }
+
+
 
 fn resolve<'a>(state: &'a str, action: &'a str) -> &'a str {
     if !&TRAVELS.contains_key(state) {
@@ -102,6 +174,6 @@ fn main() {
         father: None,
         route: vec![],
     };
-    let objective: &str = "peru";
+    let objective: &str = "mexico";
     get_route(Box::new(root_node), objective);
 }
