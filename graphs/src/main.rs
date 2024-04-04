@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
+use std::sync::Mutex;
 use lazy_static::lazy_static;
 
 
@@ -100,11 +102,16 @@ lazy_static! {
             ("west", "colombia"),
             ("north", "costa_rica"),
         ]));
+        map.insert("united_states", HashMap::from([
+            ("south", "mexico"),
+        ]));
         map
     };
 }
 
-
+lazy_static!{
+    static ref FRONTS: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::from(["argentina"]));
+}
 
 fn resolve<'a>(state: &'a str, action: &'a str) -> &'a str {
     if !&TRAVELS.contains_key(state) {
@@ -127,9 +134,9 @@ struct Node {
 }
 
 impl Node {
-    fn expand(&self, action: &'static str) -> Node {
-        Node {
-            state: resolve(&self.state, action),
+    fn expand(&self, action: &'static str, state: &'static str) -> Node {
+        Node { 
+            state,
             father: Some(Box::new(self.clone())),
             route: {
                 let mut father_route = match &self.father {
@@ -155,15 +162,17 @@ fn get_route(
         println!("we reached the objective");
         std::process::exit(0);
     } else {
-        let mut handles: Vec<_> = vec![];
+        
         let actions = TRAVELS.get(&node.state).unwrap().keys().cloned().collect::<Vec<_>>();
+
         for action in actions {
-            let son_node = node.expand(&action).clone();
-            let handle = std::thread::spawn(move|| get_route(Box::new(son_node), objective));
-            handles.push(handle);
-        }
-        for handle in handles {
-            handle.join().unwrap();
+            let state = resolve(&node.state, action);
+            if !FRONTS.lock().unwrap().contains(&state) {
+                let son_node = node.expand(&action, &state).clone();
+                let handle = std::thread::spawn(move || get_route(Box::new(son_node), objective));
+                FRONTS.lock().unwrap().insert(state);
+                handle.join().unwrap();
+            }
         }
     }
 }
@@ -174,6 +183,7 @@ fn main() {
         father: None,
         route: vec![],
     };
-    let objective: &str = "mexico";
+    
+    let objective: &str = "brazil";
     get_route(Box::new(root_node), objective);
 }
