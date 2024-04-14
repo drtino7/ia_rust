@@ -7,7 +7,7 @@ lazy_static! {
         let mut map = HashMap::new();
         map.insert(
             "argentina",
-            HashMap::from([("west", "chile"), ("east", "uruguay"), ("north", "bolivia")]),
+            HashMap::from([("west", "chile"), ("east", "uruguay"), ("north", "brazil") ]),
         );
         map.insert(
             "chile",
@@ -124,7 +124,7 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref EXPLORED: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::new());
+    static ref EXPLORED: Mutex<HashMap<&'static str,i32>> = Mutex::new(HashMap::new());
 }
 
 lazy_static! {
@@ -136,7 +136,7 @@ lazy_static! {
         let mut map = HashMap::new();
         map.insert(
             "argentina",
-            HashMap::from([("west", 1400), ("east", 200), ("north", 2600)]),
+            HashMap::from([("west", 1400), ("east", 200), ("north", 2500)]),
         );
 
         map.insert("chile", HashMap::from([("east", 1400), ("north", 2400)]));
@@ -215,7 +215,7 @@ lazy_static! {
 
         map.insert("panama", HashMap::from([("west", 1550), ("north", 700),]));
 
-        map.insert("united_states", HashMap::from([("west", 3100)]));
+        map.insert("united_states", HashMap::from([("south", 3100)]));
 
         map.insert("el_salvador", HashMap::from([("north", 230)]));
 
@@ -296,19 +296,24 @@ fn check_win(node: Box<Node>, objective: &'static str) {
     if node.state == objective {
         println!("Arrived at objective");
 
+        let mut frontier_guard = FRONTIER.lock().unwrap();
+        frontier_guard.retain(|node_| !node_.route.starts_with(&node.route));
+
+
         let mut best_route = BEST_ROUTE.lock().unwrap();
         match *best_route {
             Some(ref node_) => {
                 if node_.score < node.score {
                     *best_route = Some(node);
-                    println!("Updated best route");
+                    println!("Updated best route, {:?}, score is {:?}", best_route.as_ref().unwrap().route, best_route.as_ref().unwrap().score);
+
                 }
             }
             None => {
                 *best_route = Some(node.clone());
-                for nod in best_route.iter() {
-                    print!("Best route is {:?}", nod.route);
-                }
+
+                println!("Updated best route, {:?}, score is {:?}", best_route.as_ref().unwrap().route, best_route.as_ref().unwrap().score);
+
                 println!();
             }
         }
@@ -318,7 +323,7 @@ fn check_win(node: Box<Node>, objective: &'static str) {
 
 fn get_route(node: Box<Node>, objective: &'static str) {
     let node_ = node.clone();
-    check_win(node_, objective);
+
 
     let actions = TRAVELS
         .get(&node.state)
@@ -329,21 +334,24 @@ fn get_route(node: Box<Node>, objective: &'static str) {
 
     for action in actions {
         let state = resolve(&node.state, action);
-        println!("State is {:?} and score {:?}", node.state, node.score);
-        if !EXPLORED.lock().unwrap().contains(&state) {
+        let mut explored_guard = EXPLORED.lock().unwrap();
+        if let None = explored_guard.get(&state) {
             FRONTIER.lock().unwrap().push(node.expand(action, state));
-            EXPLORED.lock().unwrap().insert(state);
-        } else {
-            let mut frontier_guard = FRONTIER.lock().unwrap();
-            if let Some(frontier_node) = frontier_guard.first_mut() {
-                if frontier_node.state == state && frontier_node.score < node.score {
-                    *frontier_node = *node.clone();
+            explored_guard.insert(state, resolve_score(&node.state, action));
+        }
+        if let Some(score) = explored_guard.get(&state) {
+            if score < &node.score {
+                explored_guard.remove(&state);
+                explored_guard.insert(state, resolve_score(&node.state, action));
+                let mut frontier_guard = FRONTIER.lock().unwrap();
+                if let Some(frontier_node) = frontier_guard.first_mut() {
+                    if frontier_node.state == state && frontier_node.score < node.score {
+                        *frontier_node = *node.clone();
+                    }
                 }
             }
-            if FRONTIER.lock().unwrap().() {
-                
-            }
         }
+
     }
 
     if FRONTIER.lock().unwrap().is_empty() {
@@ -351,6 +359,8 @@ fn get_route(node: Box<Node>, objective: &'static str) {
         std::process::exit(0);
     }
     FRONTIER.lock().unwrap().sort_by(|a, b| a.score.cmp(&b.score));
+
+    check_win(node_, objective);
 
     let next = FRONTIER.lock().unwrap().remove(0);
 
@@ -366,7 +376,7 @@ fn main() {
         score: 0,
     };
 
-    EXPLORED.lock().unwrap().insert("argentina");
+    EXPLORED.lock().unwrap().insert("argentina", 0);
 
     let objective: &str = "brazil";
     get_route(Box::new(root_node), objective);
