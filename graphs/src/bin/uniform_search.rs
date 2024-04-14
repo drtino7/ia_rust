@@ -136,7 +136,7 @@ lazy_static! {
         let mut map = HashMap::new();
         map.insert(
             "argentina",
-            HashMap::from([("west", 1400), ("east", 200), ("north", 2500)]),
+            HashMap::from([("west", 1400), ("east", 200), ("north", 3300)]),
         );
 
         map.insert("chile", HashMap::from([("east", 1400), ("north", 2400)]));
@@ -303,7 +303,7 @@ fn check_win(node: Box<Node>, objective: &'static str) {
         let mut best_route = BEST_ROUTE.lock().unwrap();
         match *best_route {
             Some(ref node_) => {
-                if node_.score < node.score {
+                if node_.score > node.score {
                     *best_route = Some(node);
                     println!("Updated best route, {:?}, score is {:?}", best_route.as_ref().unwrap().route, best_route.as_ref().unwrap().score);
 
@@ -332,27 +332,20 @@ fn get_route(node: Box<Node>, objective: &'static str) {
         .cloned()
         .collect::<Vec<_>>();
 
-    for action in actions {
+
+    for action in actions{
         let state = resolve(&node.state, action);
-        let mut explored_guard = EXPLORED.lock().unwrap();
-        if let None = explored_guard.get(&state) {
-            FRONTIER.lock().unwrap().push(node.expand(action, state));
-            explored_guard.insert(state, resolve_score(&node.state, action));
+        if !EXPLORED.lock().unwrap().contains_key(state) {
+            EXPLORED.lock().unwrap().insert(resolve(&node.state, action), resolve_score(&node.state, action));
+            FRONTIER.lock().unwrap().push(node.expand(action, resolve(&node.state, action)));
         }
-        if let Some(score) = explored_guard.get(&state) {
-            if score < &node.score {
-                explored_guard.remove(&state);
-                explored_guard.insert(state, resolve_score(&node.state, action));
-                let mut frontier_guard = FRONTIER.lock().unwrap();
-                if let Some(frontier_node) = frontier_guard.first_mut() {
-                    if frontier_node.state == state && frontier_node.score < node.score {
-                        *frontier_node = *node.clone();
-                    }
-                }
+        else {
+            if EXPLORED.lock().unwrap().get(state).unwrap() > &resolve_score(&node.state, action) {
+                EXPLORED.lock().unwrap().insert(resolve(&node.state, action), resolve_score(&node.state, action));
+                FRONTIER.lock().unwrap().push(node.expand(action, resolve(&node.state, action)));
             }
         }
-
-    }
+    }   
 
     if FRONTIER.lock().unwrap().is_empty() {
         println!("empty");
