@@ -125,11 +125,17 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref EXPLORED: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::from(["argentina"]));
+    static ref EXPLORED_1: Mutex<HashSet<Box<Node>>> = Mutex::new(HashSet::new());
+}
+lazy_static! {
+    static ref EXPLORED_2: Mutex<HashSet<Box<Node>>> = Mutex::new(HashSet::new());
 }
 
 lazy_static! {
-    static ref FRONTIER: Mutex<Vec<Node>> = Mutex::new(vec![]);
+    static ref FRONTIER_1: Mutex<Vec<Node>> = Mutex::new(vec![]);
+}
+lazy_static! {
+    static ref FRONTIER_2: Mutex<Vec<Node>> = Mutex::new(vec![]);
 }
 
 fn resolve<'a>(state: &'a str, action: &'a str) -> &'a str {
@@ -143,7 +149,7 @@ fn resolve<'a>(state: &'a str, action: &'a str) -> &'a str {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct Node {
     state: &'static str,
     father: Option<Box<Node>>,
@@ -161,6 +167,7 @@ impl Node {
                 let mut father_route = match &self.father {
                     Some(_father) => self.route.clone(),
                     None => {
+
                         vec!["argentina"]
                     }
                 };
@@ -172,48 +179,149 @@ impl Node {
 }
 
 
-let initial_state = "argentina";
-
-fn get_route(node: Box<Node>, objective: &'static str,limit: u8) {
-    if node.state == objective {
-        println!("{:?}", node.route);
-        println!("we reached the objective");
-        std::process::exit(0);
-    } else {
-
-    if limit = 0{
-
-        get_route(node, objective, );
-    }
+const INITIAL_STATE: &str = "argentina";
 
 
-        let actions = TRAVELS
-            .get(&node.state)
-            .unwrap()
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>();
+fn get_route(node_1: Box<Node>, node_2: Box<Node>,mut limit: u8,mut t: u8,mut flag: bool) {
+    for node_explored_1 in EXPLORED_1.lock().unwrap().iter() { 
         
+         for node_explored_2 in EXPLORED_2.lock().unwrap().iter() {
+             if node_explored_2.state == node_explored_1.state{
+                 println!("{} <-> {}",node_explored_2.state,node_explored_1.state);
+                let state_1_route = &node_explored_1.route;
+                let state_2_route = &node_2.route;
+                dbg!("route is: {} -> {} ",state_1_route, state_2_route);
+                std::process::exit(0);
+             }
+         }
+    }   
+
+    if limit == 0 {
+        if flag == true{
+            let root_node = Node {
+            state: INITIAL_STATE,
+            father: None,
+            route: vec![],
+            };
+             let actions = TRAVELS
+                .get(&root_node.state)
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>();
         for action in actions {
-            let state = resolve(&node.state, action);
-            if !EXPLORED.lock().unwrap().contains(&state) {
-                FRONTIER.lock().unwrap().push(node.expand(action, state));
-                EXPLORED.lock().unwrap().insert(state);
+            if  !EXPLORED_1.lock().unwrap().contains(&root_node) {
+                get_route(Box::new(root_node.expand(action, root_node.state)),Box::from(node_2.clone()), 20,t,flag);
             }
         }
-        let next = FRONTIER.lock().unwrap().pop();
-        limit = limit - 1;
-        get_route(Box::new(next.unwrap()), objective, limit)
+
+        let limit = t*20;
+        t = t + 1;
+        FRONTIER_1.lock().unwrap().clear();
+        get_route(Box::new(root_node), Box::from(node_2.clone()), limit,t,flag);
+        
+    }else{
+
+        let root_node = Node {
+            state: "united_states",
+            father: None,
+            route: vec![],
+        };
+        let actions = TRAVELS.get(&root_node.state).unwrap().keys().cloned().collect::<Vec<_>>();
+        for action in actions {
+            if !EXPLORED_2.lock().unwrap().contains(&root_node) {
+                get_route(Box::new(root_node.expand(action, root_node.state)),Box::from(node_2.clone()),20,t,flag)
+            }
         }
+        let limit = t*20;
+        t = t + 1;
+        FRONTIER_2.lock().unwrap().clear();
+        get_route(Box::from(node_2.clone()), Box::new(root_node), limit,t,flag);
     }
+        
+    }
+    
+     let actions_1 =   TRAVELS
+             .get(&node_1.state)
+             .unwrap()
+             .keys()
+             .cloned()
+             .collect::<Vec<_>>();
+
+      let actions_2 =   TRAVELS
+             .get(&node_2.state)
+             .unwrap()
+             .keys()
+             .cloned()
+             .collect::<Vec<_>>();
+
+
+      for action_1 in actions_1 {
+          
+         let state = resolve(&node_1.state, action_1);
+          let mut match_ = false;
+          for node in EXPLORED_1.lock().unwrap().iter() {
+                if node.state == state {
+                    match_ = true;
+                }
+            }
+         if match_ == false{
+             FRONTIER_1.lock().unwrap().push(node_1.expand(action_1, state));
+             EXPLORED_1.lock().unwrap().insert(Box::from(node_1.clone().expand(action_1,state)));
+         }
+      }
+    let front_guard_1 = FRONTIER_1.lock().unwrap();
+    drop(front_guard_1);
+
+ let mut i = 0;
+      for action_2 in actions_2 {
+          let mut match_ = false;
+        let state = resolve(&node_2.state, action_2);
+            for node in EXPLORED_2.lock().unwrap().iter() {
+                if state == node.state {
+                    match_ = true;
+                }
+            }
+          if match_ == false{
+              i = i +1;
+                FRONTIER_2.lock().unwrap().push(node_2.expand(action_2, state));
+                 EXPLORED_2.lock().unwrap().insert(Box::from(node_2.clone().expand(action_2,state)));
+             }
+      }
+    let front_guard_2 = FRONTIER_2.lock().unwrap();
+    drop(front_guard_2);
+    
+      if flag == true {
+          flag = false;
+          let next = FRONTIER_1.lock().unwrap().pop();
+          limit = limit - 1;
+          get_route(Box::from(next.unwrap()), node_2, limit, t, flag);
+      }
+      else {
+          flag = true;
+          let next = FRONTIER_2.lock().unwrap().pop();
+          limit = limit - 1;
+          get_route(node_1, Box::from(next.unwrap()), limit, t, flag);
+      }
+
+}
+
+
+
 
 fn main() {
-    let root_node = Node {
-        state: initial_state,
+    let root_node_1 = Node {
+        state: INITIAL_STATE,
         father: None,
         route: vec![],
     };
 
     let objective: &str = "united_states";
-    get_route(Box::new(root_node), objective, 10);
+
+    let root_node_2 = Node {
+        state: objective,
+        father: None,
+        route: vec![],
+    };
+    get_route(Box::new(root_node_1), Box::new(root_node_2) , 10,1,true);
 }
